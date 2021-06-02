@@ -21,3 +21,12 @@ func GetChannelID(s *discordgo.Session, m *discordgo.MessageCreate) (string, err
 	}
 	return channel.ID, nil
 }
+
+func SendMessage(s *discordgo.Session, m *discordgo.MessageCreate, message string) error {
+	c, err := GetChannelID(s, m)
+	if err != nil {
+		return err
+	}
+	s.ChannelMessageSend(c, message)
+	return nil
+}

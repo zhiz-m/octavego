@@ -29,6 +29,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if strings.HasPrefix(m.Content, prefix) {
 		cmd := m.Content[len(prefix):]
 		switch {
+		case strings.HasPrefix(cmd, "join") || strings.HasPrefix(cmd, "init"):
+			_join(s, m)
 		case strings.HasPrefix(cmd, "hi"):
 			s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("hi %s", m.Author.ID))
 		case strings.HasPrefix(cmd, "play"):
@@ -45,10 +47,16 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			_shuffle(s, m)
 		case strings.HasPrefix(cmd, "leave") || strings.HasPrefix(cmd, "disconnect"):
 			_disconnect(s, m)
+		case strings.HasPrefix(cmd, "queue"):
+			_queue(s, m)
 		default:
 			s.ChannelMessageSend(m.ChannelID, HelpPrompt)
 		}
 	}
+}
+
+func _join(s *discordgo.Session, m *discordgo.MessageCreate) {
+	getAudioState(s, m)
 }
 
 func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
@@ -103,13 +111,16 @@ func _shuffle(s *discordgo.Session, m *discordgo.MessageCreate) {
 func _disconnect(s *discordgo.Session, m *discordgo.MessageCreate) {
 	err := removeAudioState(s, m)
 	if err != nil {
-		c, err := util.GetChannelID(s, m)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-		s.ChannelMessageSend(c, RemoveAudioStateErrorPrompt)
+		util.SendMessage(s, m, RemoveAudioStateErrorPrompt)
 	}
+}
+
+func _queue(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := getAudioState(s, m)
+	if err != nil {
+		return
+	}
+	util.SendMessage(s, m, fmt.Sprintf("%v", audioState))
 }
 
 func getAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioState, error) {

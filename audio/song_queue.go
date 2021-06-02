@@ -1,16 +1,17 @@
 package audio
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"time"
 )
 
 type SongQueue struct {
-	queue     []*Song
-	loader    *Loader
-	queueLock sync.Mutex
-	queueSem  chan bool
+	queue    []*Song
+	loader   *Loader
+	lock     sync.Mutex
+	queueSem chan bool
 }
 
 func NewSongQueue() *SongQueue {
@@ -22,13 +23,13 @@ func NewSongQueue() *SongQueue {
 }
 
 func (songQueue *SongQueue) Add(songs ...*Song) {
-	songQueue.queueLock.Lock()
+	songQueue.lock.Lock()
 
 	songQueue.queue = append(songQueue.queue, songs...)
 
 	songQueue.loader.Enqueue(songs...)
 
-	songQueue.queueLock.Unlock()
+	songQueue.lock.Unlock()
 
 	for range songs {
 		songQueue.queueSem <- true
@@ -38,8 +39,8 @@ func (songQueue *SongQueue) Add(songs ...*Song) {
 func (songQueue *SongQueue) Get() *Song {
 	<-songQueue.queueSem
 
-	songQueue.queueLock.Lock()
-	defer songQueue.queueLock.Unlock()
+	songQueue.lock.Lock()
+	defer songQueue.lock.Unlock()
 
 	song := songQueue.queue[0]
 	songQueue.queue = songQueue.queue[1:]
@@ -48,8 +49,8 @@ func (songQueue *SongQueue) Get() *Song {
 
 func (songQueue *SongQueue) Shuffle() {
 	rand.Seed(time.Now().UnixNano())
-	songQueue.queueLock.Lock()
-	defer songQueue.queueLock.Unlock()
+	songQueue.lock.Lock()
+	defer songQueue.lock.Unlock()
 
 	rand.Shuffle(len(songQueue.queue), func(i, j int) {
 		songQueue.queue[i], songQueue.queue[j] = songQueue.queue[j], songQueue.queue[i]
@@ -59,10 +60,10 @@ func (songQueue *SongQueue) Shuffle() {
 }
 
 func (songQueue *SongQueue) Clear() {
-	songQueue.queueLock.Lock()
+	songQueue.lock.Lock()
 	songQueue.loader.Clear()
 	songQueue.queue = make([]*Song, 0)
-	songQueue.queueLock.Unlock()
+	songQueue.lock.Unlock()
 
 	for {
 		select {
@@ -71,6 +72,18 @@ func (songQueue *SongQueue) Clear() {
 			return
 		}
 	}
+}
+func (songQueue *SongQueue) String() string {
+	var text string
+	songQueue.lock.Lock()
+	defer songQueue.lock.Unlock()
+	for i, song := range songQueue.queue {
+		text = text + fmt.Sprintf("%v. %v", i+1, song)
+	}
+	if text == "" {
+		text = "*empty*"
+	}
+	return text
 }
 
 func (songQueue *SongQueue) Cleanup() {

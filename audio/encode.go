@@ -3,6 +3,7 @@ package audio
 import (
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"layeh.com/gopus"
@@ -22,7 +23,9 @@ func (error *KillError) Error() string {
 	return "PlaySong was killed"
 }
 
-func Encode(in chan []int16, out *discordgo.VoiceConnection) {
+// encodes PCM music and sends it to the discordgo Voice Connection
+func Encode(in chan []int16, wg *sync.WaitGroup, out *discordgo.VoiceConnection) {
+	defer wg.Done()
 	encoder, err := gopus.NewEncoder(FrameRate, Channels, gopus.Audio)
 	if err != nil {
 		print("error creating pcm encoder")

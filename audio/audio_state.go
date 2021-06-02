@@ -82,8 +82,10 @@ func (state *AudioState) play(URL string) (bool, error) {
 	}
 	buffer := bufio.NewReaderSize(pipe, 16384)
 
+	var wg sync.WaitGroup
+	wg.Add(1)
 	inChan := make(chan []int16, 2)
-	go Encode(inChan, state.vc)
+	go Encode(inChan, &wg, state.vc)
 
 	err = cmd.Start()
 	if err != nil {
@@ -123,6 +125,7 @@ func (state *AudioState) play(URL string) (bool, error) {
 			buf := make([]int16, FrameSize*Channels)
 			err = binary.Read(buffer, binary.LittleEndian, &buf)
 			if err == io.EOF {
+				wg.Wait()
 				return false, nil
 			}
 			if err != io.ErrUnexpectedEOF && err != nil {
@@ -135,6 +138,10 @@ func (state *AudioState) play(URL string) (bool, error) {
 
 func (state *AudioState) Cleanup() {
 	state.kill <- true
+	err := state.vc.Disconnect()
+	if err != nil {
+		fmt.Println("Error disconnecting from voice connection")
+	}
 }
 
 func (state *AudioState) Add(query string) {
@@ -184,4 +191,14 @@ func (state *AudioState) Resume() bool {
 	}
 	state.resume <- true
 	return true
+}
+
+func (state *AudioState) String() string {
+	state.lock.Lock()
+	defer state.lock.Unlock()
+	currentSong := "*Not playing*\n"
+	if state.currentSong != nil {
+		currentSong = fmt.Sprintf("%v", state.currentSong)
+	}
+	return fmt.Sprintf("**Current Song:**\n%v\n**Queue:**\n%v", currentSong, state.songQueue)
 }
