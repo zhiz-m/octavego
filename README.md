@@ -2,6 +2,6 @@
 Discord music bot
 
 ## Usage
-'''bash
+```bash
 octavego <token> <prefix: default a.>
-'''
+```
