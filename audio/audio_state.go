@@ -53,7 +53,6 @@ func (state *AudioState) workLoop() {
 		case song := <-songChan:
 			state.lock.Lock()
 			state.currentSong = song
-			fmt.Println("current song:", state.currentSong)
 			state.lock.Unlock()
 			song.WaitLoad()
 			killed, err := state.play(song.SourceURL)
@@ -119,15 +118,14 @@ func (state *AudioState) play(URL string) (bool, error) {
 					state.lock.Unlock()
 					break L
 				}
-
 			}
 		default:
 			buf := make([]int16, FrameSize*Channels)
 			err = binary.Read(buffer, binary.LittleEndian, &buf)
-			if err == io.EOF || err == io.ErrUnexpectedEOF {
+			if err == io.EOF {
 				return false, nil
 			}
-			if err != nil {
+			if err != io.ErrUnexpectedEOF && err != nil {
 				return false, err
 			}
 			inChan <- buf
@@ -146,6 +144,11 @@ func (state *AudioState) Add(query string) {
 
 func (state *AudioState) Clear() bool {
 	state.songQueue.Clear()
+	return true
+}
+
+func (state *AudioState) Shuffle() bool {
+	state.songQueue.Shuffle()
 	return true
 }
 

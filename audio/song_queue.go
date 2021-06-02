@@ -60,9 +60,17 @@ func (songQueue *SongQueue) Shuffle() {
 
 func (songQueue *SongQueue) Clear() {
 	songQueue.queueLock.Lock()
-	defer songQueue.queueLock.Unlock()
 	songQueue.loader.Clear()
 	songQueue.queue = make([]*Song, 0)
+	songQueue.queueLock.Unlock()
+
+	for {
+		select {
+		case <-songQueue.queueSem:
+		default:
+			return
+		}
+	}
 }
 
 func (songQueue *SongQueue) Cleanup() {

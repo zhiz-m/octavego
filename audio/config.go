@@ -10,8 +10,9 @@ const (
 
 	AudioTimeout = 10 * time.Minute
 
-	VoiceChannelErrorPrompt = "**Please join a voice channel**"
-	HelpPrompt              = "**Invalid command**"
+	VoiceChannelErrorPrompt     = "**Please join a voice channel**"
+	RemoveAudioStateErrorPrompt = "**Not currently in a channel**"
+	HelpPrompt                  = "**Invalid command**"
 )
 
 var ()

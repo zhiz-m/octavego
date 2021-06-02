@@ -2,6 +2,8 @@ package util
 
 import (
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func ParseArgs(text string) string {
@@ -10,4 +12,12 @@ func ParseArgs(text string) string {
 		return ""
 	}
 	return query[1]
+}
+
+func GetChannelID(s *discordgo.Session, m *discordgo.MessageCreate) (string, error) {
+	channel, err := s.State.Channel(m.ChannelID)
+	if err != nil {
+		return "", err
+	}
+	return channel.ID, nil
 }

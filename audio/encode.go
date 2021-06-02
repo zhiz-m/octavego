@@ -34,10 +34,10 @@ func Encode(in chan []int16, out *discordgo.VoiceConnection) {
 			return
 		}
 		encoded, err := encoder.Encode(raw, FrameSize, FrameSize)
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
+		if err == io.EOF {
 			return
 		}
-		if err != nil {
+		if err != io.ErrUnexpectedEOF && err != nil {
 			fmt.Println("Error encode:", err)
 			return
 		}

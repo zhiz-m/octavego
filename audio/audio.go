@@ -39,6 +39,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			_pause(s, m)
 		case strings.HasPrefix(cmd, "resume"):
 			_resume(s, m)
+		case strings.HasPrefix(cmd, "clear"):
+			_clear(s, m)
+		case strings.HasPrefix(cmd, "shuffle"):
+			_shuffle(s, m)
+		case strings.HasPrefix(cmd, "leave") || strings.HasPrefix(cmd, "disconnect"):
+			_disconnect(s, m)
 		default:
 			s.ChannelMessageSend(m.ChannelID, HelpPrompt)
 		}
@@ -46,7 +52,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
-	audioState, err := GetAudioState(s, m)
+	audioState, err := getAudioState(s, m)
 	if err != nil {
 		return
 	}
@@ -55,7 +61,7 @@ func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
 }
 
 func _skip(s *discordgo.Session, m *discordgo.MessageCreate) {
-	audioState, err := GetAudioState(s, m)
+	audioState, err := getAudioState(s, m)
 	if err != nil {
 		return
 	}
@@ -63,7 +69,7 @@ func _skip(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func _pause(s *discordgo.Session, m *discordgo.MessageCreate) {
-	audioState, err := GetAudioState(s, m)
+	audioState, err := getAudioState(s, m)
 	if err != nil {
 		return
 	}
@@ -71,14 +77,42 @@ func _pause(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func _resume(s *discordgo.Session, m *discordgo.MessageCreate) {
-	audioState, err := GetAudioState(s, m)
+	audioState, err := getAudioState(s, m)
 	if err != nil {
 		return
 	}
 	audioState.Resume()
 }
 
-func GetAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioState, error) {
+func _clear(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := getAudioState(s, m)
+	if err != nil {
+		return
+	}
+	audioState.Clear()
+}
+
+func _shuffle(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := getAudioState(s, m)
+	if err != nil {
+		return
+	}
+	audioState.Shuffle()
+}
+
+func _disconnect(s *discordgo.Session, m *discordgo.MessageCreate) {
+	err := removeAudioState(s, m)
+	if err != nil {
+		c, err := util.GetChannelID(s, m)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		s.ChannelMessageSend(c, RemoveAudioStateErrorPrompt)
+	}
+}
+
+func getAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioState, error) {
 	v, c, g, err := getDiscordInfo(s, m)
 	if err != nil {
 		return nil, err
@@ -96,6 +130,20 @@ func GetAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioStat
 	}
 	audioStates[g] = audioState
 	return audioState, nil
+}
+
+func removeAudioState(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	_, _, g, err := getDiscordInfo(s, m)
+	if err != nil {
+		return err
+	}
+	audioState, ok := audioStates[g]
+	if !ok {
+		return errors.New("bot is not connected to a channel")
+	}
+	audioState.Cleanup()
+	delete(audioStates, g)
+	return nil
 }
 
 // returns voice channel ID, text channel ID, guild ID, error
