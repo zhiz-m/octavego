@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -8,6 +9,23 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"github.com/zhiz-m/octavego/audio"
 )
+
+var (
+	Token  string
+	Prefix = "a."
+)
+
+func init() {
+	args := os.Args[1:]
+	if len(args) == 0 || len(args) > 2 {
+		fmt.Println("Usage: octavego <token> <prefix: default a.>")
+		os.Exit(1)
+	}
+	Token = args[0]
+	if len(args) == 2 {
+		Prefix = args[1]
+	}
+}
 
 func main() {
 	dg, err := discordgo.New("Bot " + Token)
