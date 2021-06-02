@@ -43,6 +43,8 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			_resume(s, m)
 		case strings.HasPrefix(cmd, "clear"):
 			_clear(s, m)
+		case strings.HasPrefix(cmd, "loop"):
+			_loop(s, m)
 		case strings.HasPrefix(cmd, "shuffle"):
 			_shuffle(s, m)
 		case strings.HasPrefix(cmd, "leave") || strings.HasPrefix(cmd, "disconnect"):
@@ -57,6 +59,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
 func _join(s *discordgo.Session, m *discordgo.MessageCreate) {
 	getAudioState(s, m)
+	util.AddReact(s, m, "🥳")
 }
 
 func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
@@ -65,7 +68,12 @@ func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
 		return
 	}
 	query := util.ParseArgs(text)
-	audioState.Add(query)
+	res := audioState.Add(query)
+	if res {
+		util.AddReact(s, m, "🎶")
+	} else {
+		util.SendMessageEmbed(s, m, SkipErrorPrompt, EmbedColor)
+	}
 }
 
 func _skip(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -73,7 +81,12 @@ func _skip(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	audioState.Skip()
+	res := audioState.Skip()
+	if res {
+		util.AddReact(s, m, "↪")
+	} else {
+		util.SendMessageEmbed(s, m, SkipErrorPrompt, EmbedColor)
+	}
 }
 
 func _pause(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -81,7 +94,12 @@ func _pause(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	audioState.Pause()
+	res := audioState.Pause()
+	if res {
+		util.AddReact(s, m, "⏸")
+	} else {
+		util.SendMessageEmbed(s, m, PauseErrorPrompt, EmbedColor)
+	}
 }
 
 func _resume(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -89,7 +107,26 @@ func _resume(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	audioState.Resume()
+	res := audioState.Resume()
+	if res {
+		util.AddReact(s, m, "▶")
+	} else {
+		util.SendMessageEmbed(s, m, ResumeErrorPrompt, EmbedColor)
+	}
+}
+
+func _loop(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := getAudioState(s, m)
+	if err != nil {
+		return
+	}
+	audioState.Loop()
+	res := audioState.Clear()
+	if res {
+		util.AddReact(s, m, "🔄")
+	} else {
+		util.SendMessageEmbed(s, m, LoopErrorPrompt, EmbedColor)
+	}
 }
 
 func _clear(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -97,7 +134,10 @@ func _clear(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	audioState.Clear()
+	res := audioState.Clear()
+	if res {
+		util.AddReact(s, m, "🗑")
+	}
 }
 
 func _shuffle(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -105,13 +145,18 @@ func _shuffle(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	audioState.Shuffle()
+	res := audioState.Shuffle()
+	if res {
+		util.AddReact(s, m, "🔀")
+	}
 }
 
 func _disconnect(s *discordgo.Session, m *discordgo.MessageCreate) {
 	err := removeAudioState(s, m)
 	if err != nil {
 		util.SendMessage(s, m, RemoveAudioStateErrorPrompt)
+	} else {
+		util.AddReact(s, m, "👋")
 	}
 }
 
@@ -120,7 +165,7 @@ func _queue(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	util.SendMessage(s, m, fmt.Sprintf("%v", audioState))
+	util.SendMessageEmbed(s, m, fmt.Sprintf("%v", audioState), EmbedColor)
 }
 
 func getAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioState, error) {

@@ -20,6 +20,7 @@ type AudioState struct {
 	pause       chan bool
 	resume      chan bool
 	isPaused    bool
+	isLooping   bool
 	currentSong *Song
 	lock        sync.Mutex
 }
@@ -45,7 +46,11 @@ func NewAudioState(s *discordgo.Session, guildID, channelID string) (*AudioState
 func (state *AudioState) workLoop() {
 	songChan := make(chan *Song, 1)
 	getSong := func() {
-		songChan <- state.songQueue.Get()
+		if state.isLooping {
+			songChan <- state.currentSong
+		} else {
+			songChan <- state.songQueue.Get()
+		}
 	}
 	for {
 		go getSong()
@@ -144,9 +149,10 @@ func (state *AudioState) Cleanup() {
 	}
 }
 
-func (state *AudioState) Add(query string) {
+func (state *AudioState) Add(query string) bool {
 	songs := ProcessQuery(query)
 	state.songQueue.Add(songs...)
+	return true
 }
 
 func (state *AudioState) Clear() bool {
@@ -190,6 +196,16 @@ func (state *AudioState) Resume() bool {
 		return false
 	}
 	state.resume <- true
+	return true
+}
+
+func (state *AudioState) Loop() bool {
+	state.lock.Lock()
+	defer state.lock.Unlock()
+	if state.currentSong == nil {
+		return false
+	}
+	state.isLooping = !state.isLooping
 	return true
 }
 
