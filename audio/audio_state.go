@@ -34,6 +34,8 @@ func NewAudioState(s *discordgo.Session, guildID, channelID string) (*AudioState
 		vc:          vc,
 		kill:        make(chan bool, 1),
 		skip:        make(chan bool, 1),
+		pause:       make(chan bool, 1),
+		resume:      make(chan bool, 1),
 		currentSong: nil,
 	}
 	go state.workLoop()
@@ -49,7 +51,10 @@ func (state *AudioState) workLoop() {
 		go getSong()
 		select {
 		case song := <-songChan:
+			state.lock.Lock()
 			state.currentSong = song
+			fmt.Println("current song:", state.currentSong)
+			state.lock.Unlock()
 			song.WaitLoad()
 			killed, err := state.play(song.SourceURL)
 			if killed {
@@ -139,17 +144,20 @@ func (state *AudioState) Add(query string) {
 	state.songQueue.Add(songs...)
 }
 
-func (state *AudioState) Clear() {
+func (state *AudioState) Clear() bool {
 	state.songQueue.Clear()
+	return true
 }
 
-func (state *AudioState) Skip() {
+func (state *AudioState) Skip() bool {
 	state.lock.Lock()
-	skip := state.currentSong != nil
+	skip := state.currentSong != nil && !state.isPaused
 	state.lock.Unlock()
 	if skip {
 		state.skip <- true
+		return true
 	}
+	return false
 }
 
 func (state *AudioState) IsPaused() bool {
@@ -158,16 +166,19 @@ func (state *AudioState) IsPaused() bool {
 	return state.isPaused
 }
 
-func (state *AudioState) Pause() {
+func (state *AudioState) Pause() bool {
 	if state.IsPaused() || state.currentSong == nil {
-		return
+		return false
 	}
 	state.pause <- true
+
+	return true
 }
 
-func (state *AudioState) Resume() {
+func (state *AudioState) Resume() bool {
 	if !state.IsPaused() {
-		return
+		return false
 	}
 	state.resume <- true
+	return true
 }

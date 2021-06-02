@@ -24,10 +24,8 @@ func NewSongQueue() *SongQueue {
 func (songQueue *SongQueue) Add(songs ...*Song) {
 	songQueue.queueLock.Lock()
 
-	for _, song := range songs {
-		songQueue.queue = append(songQueue.queue, song)
-		songQueue.queueSem <- true
-	}
+	songQueue.queue = append(songQueue.queue, songs...)
+
 	songQueue.loader.Enqueue(songs...)
 
 	songQueue.queueLock.Unlock()
@@ -45,7 +43,6 @@ func (songQueue *SongQueue) Get() *Song {
 
 	song := songQueue.queue[0]
 	songQueue.queue = songQueue.queue[1:]
-
 	return song
 }
 

@@ -17,6 +17,7 @@ var (
 
 func AddAudio(s *discordgo.Session, p string) {
 	prefix = p
+	audioStates = make(map[string]*AudioState)
 	s.AddHandler(messageCreate)
 }
 
@@ -32,6 +33,12 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("hi %s", m.Author.ID))
 		case strings.HasPrefix(cmd, "play"):
 			_play(s, m, m.Content)
+		case strings.HasPrefix(cmd, "skip"):
+			_skip(s, m)
+		case strings.HasPrefix(cmd, "pause"):
+			_pause(s, m)
+		case strings.HasPrefix(cmd, "resume"):
+			_resume(s, m)
 		default:
 			s.ChannelMessageSend(m.ChannelID, HelpPrompt)
 		}
@@ -41,7 +48,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
 	audioState, err := GetAudioState(s, m)
 	if err != nil {
-		fmt.Println("Error _play:", err)
 		return
 	}
 	query := util.ParseArgs(text)
@@ -49,12 +55,31 @@ func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
 }
 
 func _skip(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := GetAudioState(s, m)
+	if err != nil {
+		return
+	}
+	audioState.Skip()
+}
 
+func _pause(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := GetAudioState(s, m)
+	if err != nil {
+		return
+	}
+	audioState.Pause()
+}
+
+func _resume(s *discordgo.Session, m *discordgo.MessageCreate) {
+	audioState, err := GetAudioState(s, m)
+	if err != nil {
+		return
+	}
+	audioState.Resume()
 }
 
 func GetAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioState, error) {
 	v, c, g, err := getDiscordInfo(s, m)
-	println("hi1", v, c, g, err)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +94,7 @@ func GetAudioState(s *discordgo.Session, m *discordgo.MessageCreate) (*AudioStat
 	if err != nil {
 		return nil, err
 	}
-	println(audioState)
+	audioStates[g] = audioState
 	return audioState, nil
 }
 
