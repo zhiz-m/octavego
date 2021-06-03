@@ -1,10 +1,6 @@
 package audio
 
 import (
-	"fmt"
-	"io"
-	"sync"
-
 	"github.com/bwmarrin/discordgo"
 	"layeh.com/gopus"
 )
@@ -15,33 +11,24 @@ const (
 	Channels  = 2
 )
 
-type KillError struct {
-	error
-}
-
-func (error *KillError) Error() string {
-	return "PlaySong was killed"
-}
-
 // encodes PCM music and sends it to the discordgo Voice Connection
-func Encode(in chan []int16, wg *sync.WaitGroup, out *discordgo.VoiceConnection) {
-	defer wg.Done()
+func Encode(in <-chan []int16, status chan<- error, out *discordgo.VoiceConnection) {
+
 	encoder, err := gopus.NewEncoder(FrameRate, Channels, gopus.Audio)
 	if err != nil {
-		print("error creating pcm encoder")
+		status <- err
 		return
 	}
+	encoder.SetBitrate(96000)
 	for {
 		raw, ok := <-in
 		if !ok {
+			status <- nil
 			return
 		}
-		encoded, err := encoder.Encode(raw, FrameSize, FrameSize)
-		if err == io.EOF {
-			return
-		}
-		if err != io.ErrUnexpectedEOF && err != nil {
-			fmt.Println("Error encode:", err)
+		encoded, err := encoder.Encode(raw, FrameSize, FrameSize*4)
+		if err != nil {
+			status <- err
 			return
 		}
 		out.OpusSend <- encoded

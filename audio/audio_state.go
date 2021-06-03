@@ -81,17 +81,26 @@ func (state *AudioState) play(URL string) (bool, error) {
 	state.vc.Speaking(true)
 	defer state.vc.Speaking(false)
 
-	cmd := exec.Command("ffmpeg", "-i", URL, "-f", "s16le", "-ar", "48000", "-ac", "2", "pipe:1")
+	cmd := exec.Command(
+		"ffmpeg",
+		"-reconnect", "1",
+		"-reconnect_streamed", "1",
+		"-reconnect_delay_max", "5",
+		"-i", URL,
+		"-f", "s16le",
+		"-ar", "48000",
+		"-ac", "2",
+		"pipe:1",
+	)
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return false, err
 	}
 	buffer := bufio.NewReaderSize(pipe, 16384)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	status := make(chan error, 1)
 	inChan := make(chan []int16, 2)
-	go Encode(inChan, &wg, state.vc)
+	go Encode(inChan, status, state.vc)
 
 	err = cmd.Start()
 	if err != nil {
@@ -119,6 +128,9 @@ func (state *AudioState) play(URL string) (bool, error) {
 					return true, nil
 				case <-state.skip:
 					close(inChan)
+					state.lock.Lock()
+					state.isPaused = false
+					state.lock.Unlock()
 					return false, nil
 				case <-state.resume:
 					state.lock.Lock()
@@ -131,8 +143,9 @@ func (state *AudioState) play(URL string) (bool, error) {
 			buf := make([]int16, FrameSize*Channels)
 			err = binary.Read(buffer, binary.LittleEndian, &buf)
 			if err == io.EOF {
-				wg.Wait()
-				return false, nil
+				close(inChan)
+				err = <-status
+				return false, err
 			}
 			if err != io.ErrUnexpectedEOF && err != nil {
 				return false, err
