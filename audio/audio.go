@@ -34,7 +34,9 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		case strings.HasPrefix(cmd, "hi"):
 			s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("hi %s", m.Author.ID))
 		case strings.HasPrefix(cmd, "play"):
-			_play(s, m, m.Content)
+			_play(s, m, m.Content, false)
+		case strings.HasPrefix(cmd, "splay"):
+			_play(s, m, m.Content, true)
 		case strings.HasPrefix(cmd, "skip"):
 			_skip(s, m)
 		case strings.HasPrefix(cmd, "pause"):
@@ -62,13 +64,13 @@ func _join(s *discordgo.Session, m *discordgo.MessageCreate) {
 	util.AddReact(s, m, "🥳")
 }
 
-func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string) {
+func _play(s *discordgo.Session, m *discordgo.MessageCreate, text string, shuffleInput bool) {
 	audioState, err := getAudioState(s, m)
 	if err != nil {
 		return
 	}
 	query := util.ParseArgs(text)
-	res := audioState.Add(query)
+	res := audioState.Add(query, shuffleInput)
 	if res {
 		util.AddReact(s, m, "🎶")
 	} else {
@@ -120,8 +122,7 @@ func _loop(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	audioState.Loop()
-	res := audioState.Clear()
+	res := audioState.Loop()
 	if res {
 		util.AddReact(s, m, "🔄")
 	} else {
@@ -134,8 +135,9 @@ func _clear(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if err != nil {
 		return
 	}
-	res := audioState.Clear()
+	res := audioState.ClearQueue()
 	if res {
+		audioState.Skip()
 		util.AddReact(s, m, "🗑")
 	}
 }

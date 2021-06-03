@@ -60,18 +60,22 @@ func (songQueue *SongQueue) Shuffle() {
 }
 
 func (songQueue *SongQueue) Clear() {
-	songQueue.lock.Lock()
-	songQueue.loader.Clear()
-	songQueue.queue = make([]*Song, 0)
-	songQueue.lock.Unlock()
-
+	var count int
+L:
 	for {
 		select {
 		case <-songQueue.queueSem:
+			count++
 		default:
-			return
+			break L
 		}
 	}
+
+	songQueue.lock.Lock()
+	songQueue.loader.Clear()
+	songQueue.queue = songQueue.queue[count:]
+	songQueue.lock.Unlock()
+
 }
 func (songQueue *SongQueue) String() string {
 	var text string
@@ -80,7 +84,7 @@ func (songQueue *SongQueue) String() string {
 	for i, song := range songQueue.queue {
 		text = text + fmt.Sprintf("%v. %v", i+1, song)
 	}
-	if text == "" {
+	if len(songQueue.queue) == 0 {
 		text = "*empty*"
 	}
 	return text

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand"
 	"os/exec"
 	"sync"
 	"time"
@@ -149,13 +150,25 @@ func (state *AudioState) Cleanup() {
 	}
 }
 
-func (state *AudioState) Add(query string) bool {
-	songs := ProcessQuery(query)
+func (state *AudioState) Add(query string, shuffleBefore bool) bool {
+	songs, err := ProcessQuery(query)
+	if err != nil {
+		return false
+	}
+
+	if shuffleBefore {
+		rand.Seed(time.Now().UnixNano())
+
+		rand.Shuffle(len(songs), func(i, j int) {
+			songs[i], songs[j] = songs[j], songs[i]
+		})
+	}
+
 	state.songQueue.Add(songs...)
 	return true
 }
 
-func (state *AudioState) Clear() bool {
+func (state *AudioState) ClearQueue() bool {
 	state.songQueue.Clear()
 	return true
 }

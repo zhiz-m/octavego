@@ -3,7 +3,6 @@ package audio
 import (
 	"fmt"
 	"sync"
-	"time"
 )
 
 type Song struct {
@@ -15,8 +14,8 @@ type Song struct {
 	SourceURL   string
 	SearchQuery string
 	title       string
-	author      string
-	duration    *time.Time
+	artist      string
+	duration    int
 }
 
 func NewSongBySearch(query string) *Song {
@@ -33,6 +32,12 @@ func NewSongByURL(URL string) *Song {
 		isWaited:  true,
 		isLoaded:  true,
 	}
+}
+
+func (song *Song) SetMetadata(title, artist string, numSeconds int) {
+	song.title = title
+	song.artist = artist
+	song.duration = numSeconds
 }
 
 // waits for the song to be fully loaded
@@ -57,7 +62,7 @@ func (song *Song) String() string {
 	song.lock.Lock()
 	defer song.lock.Unlock()
 	title := song.title
-	author := song.author
+	author := song.artist
 	t := song.duration
 	duration := "unknown duration"
 	if title == "" {
@@ -69,8 +74,10 @@ func (song *Song) String() string {
 	if author == "" {
 		author = "unknown"
 	}
-	if t != nil {
-		duration = string(t.String())
+	if t > 0 {
+		var minutes int = t / 60
+		var seconds int = t - minutes*60
+		duration = fmt.Sprintf("%d:%02d", minutes, seconds)
 	}
 	return fmt.Sprintf("%v by %v: %v\n", title, author, duration)
 }

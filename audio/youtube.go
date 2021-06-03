@@ -1,6 +1,7 @@
 package audio
 
 import (
+	"fmt"
 	"os/exec"
 )
 
@@ -18,6 +19,10 @@ func YTDL(song *Song) (string, error) {
 		return "", err
 	}
 	return string(out), nil
+}
+
+func YoutubeSearchQuery(title, artist string) string {
+	return fmt.Sprintf("%v by %v lyrics", title, artist)
 }
 
 /*
